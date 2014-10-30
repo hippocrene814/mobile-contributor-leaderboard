@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>UI Test Contributor Leaderboard</title>
+    <link href="http://maxcdn.bootstrapcdn.com/bootstrap/2.2.0/css/bootstrap.css" rel="stylesheet">
+    <link href="css/legend.css" type="text/css" rel="stylesheet"/>
+    <link href="css/basicStyle.css" type="text/css" rel="stylesheet"/>
+    <script src="js/Chart.js"></script>
+    <script src="js/operData.js"></script>
+    <script src="//code.jquery.com/jquery-1.10.2.js"></script>
+    <script type="text/javascript">
+    var rankRange = 20;
+    var innerHtmlStr = '<canvas id="canvas" height="1000" width="2000"></canvas>';
+    function loadJSONDoc() {
+      var xmlhttp = new XMLHttpRequest();
+      var img = "<img src='/images/loading.gif' ";
+      img += "style='margin-top:10px; margin-left:10px'>";
+      xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+          document.getElementById('loadImage').innerHTML = '';
+          var txt = xmlhttp.responseText;
+          var obj = JSON.parse(txt);
+          populate(obj);
+        } else {
+          // If not ready, show loading gif
+          document.getElementById('loadImage').innerHTML = img;
+        }
+      };
+      // If no mobile team selected, show buttons for user to pick one
+      if (!window.location.search) {
+        pickOs('boardChart');
+        return;
+      }
+      // Update html elements
+      var os = window.location.search.substring(4);
+      document.getElementById(os).className = 'active';
+      document.getElementById('boardchart').href = 'boardChart.html?os=' + os;
+      document.getElementById('boardtable').href = 'boardTable.html?os=' + os;
+      document.getElementById('boardtree').href = 'boardTree.html?os=' + os;
+      var url = os + '_tests.json';
+
+      xmlhttp.open('GET', url, true);
+      xmlhttp.send();
+    }
+
+    // Get the data and construct a data structure
+    // and create a chart to show the result
+    function populate(testResults) {
+      // Create an array arr
+      // to save each contributor with his/her testcase and testsuite
+      var arr = populateResults(testResults);
+      createSelect(arr.length);
+      var e = document.getElementById('selectRange');
+      var indx = e.options[e.selectedIndex].value;
+      // Create a bar chart
+      var barChart = createChart(arr, indx);
+      updateChart(barChart);
+    }
+
+    // Create select of rank range with options
+    function createSelect(leng) {
+      var newSelect = document.getElementById('selectRange');
+      var len = Math.ceil(leng / rankRange);
+      for (var i = 0; i < len; i++) {
+        var opt = document.createElement('option');
+        opt.value = i * rankRange;
+        var st = i * rankRange + 1;
+        var ed;
+        if (i === len - 1) {
+          // Show the last option in select
+          ed = leng;
+        } else {
+          // Show other options except the last one
+          ed = i * rankRange + rankRange;
+        }
+        opt.innerHTML = st + '~' + ed;
+        newSelect.appendChild(opt);
+      }
+    }
+
+    // Reconstruct for bar chart -- create new data structure called barChartData
+    function createChart(arr, indx) {
+      var barChartData = {
+        labels: [],
+        datasets: [
+          {
+            title: '#Test Case',
+            fillColor: 'rgba(220,220,220,0.2)',
+            strokeColor: 'rgba(220,220,220,1)',
+            pointColor: 'rgba(220,220,220,1)',
+            pointStrokeColor: '#fff',
+            pointHighlightFill: '#fff',
+            pointHighlightStroke: 'rgba(220,220,220,1)',
+            data: []
+          },
+          {
+            title: '#Test Suite',
+            fillColor: 'rgba(151,187,205,0.2)',
+            strokeColor: 'rgba(151,187,205,1)',
+            pointColor: 'rgba(151,187,205,1)',
+            pointStrokeColor: '#fff',
+            pointHighlightFill: '#fff',
+            pointHighlightStroke: 'rgba(151,187,205,1)',
+            data: []
+          }
+        ]
+      };
+      // Sort arr by number of test cases
+      arr.sort(compare('testCaseCount'));
+      var len = Math.min((rankRange + indx * 1), arr.length);
+      // Fill the data array of datasets
+      for (var j = indx; j < len; j++) {
+        barChartData.labels.push(arr[j].contr);
+        (barChartData.datasets)[0].data.push(arr[j].testCaseCount);
+        (barChartData.datasets)[1].data.push(arr[j].testSuiteCount);
+      }
+
+      return barChartData;
+    }
+
+    // Show chart on load
+    addEventListener('load', function() {
+      loadJSONDoc();
+    });
+
+    // Load new chart when select another rank range option
+    // Similar to loadJSONDoc()
+    function loadNewData(indx) {
+      var xhr = new XMLHttpRequest();
+      xhr.onload = function() {
+        var txt = xhr.responseText;
+        var obj = JSON.parse(txt);
+        var arr = populateResults(obj);
+        var barChart = createChart(arr, indx * rankRange);
+        updateChart(barChart);
+      };
+      var os = window.location.search.substring(4);
+      var url = os + '_tests.json';
+
+      xhr.open('GET', url, true);
+      xhr.send();
+    }
+
+    // Update chart
+    function updateChart(barChart) {
+      document.getElementById('canvas_holder').innerHTML = innerHtmlStr;
+      var ctx = document.getElementById('canvas').getContext('2d');
+      new Chart(ctx).Bar(barChart, {
+        responsive: true
+      });
+      legend(document.getElementById('barLegend'), barChart);
+    }
+
+    // Show legend in chart
+    function legend(parent, data) {
+        parent.className = 'legend';
+        var datas = data.hasOwnProperty('datasets') ? data.datasets : data;
+        // Remove possible children of the parent
+        while (parent.hasChildNodes()) {
+            parent.removeChild(parent.lastChild);
+        }
+        datas.forEach(function(d) {
+            var title = document.createElement('span');
+            title.className = 'title';
+            var bColor = d.hasOwnProperty('strokeColor') ? d.strokeColor : d.color;
+            title.style.borderColor = bColor;
+            title.style.borderStyle = 'solid';
+            parent.appendChild(title);
+            var text = document.createTextNode(d.title);
+            title.appendChild(text);
+        });
+    }
+    </script>
+  </head>
+
+  <body>
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container-fluid">
+          <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="brand">UI Test Contributor Leaderboard</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li class="active"><a href="boardChart.html" id="boardchart">Chart</a></li>
+              <li><a href="boardTable.html" id="boardtable">Table</a></li>
+              <li><a href="boardTree.html" id="boardtree">Tree</a></li>
+            </ul>
+            <ul class="nav pull-right">
+              <li id="ios"><a href="boardChart.html?os=ios">ios</a></li>
+              <li id="android"><a href="boardChart.html?os=android">android</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid" id="content">
+      <h2>Leaderboard Chart</h2>
+      Please select the rank range: <select id="selectRange" onchange="loadNewData(this.selectedIndex)"></select>
+      <div id="loadImage">
+      </div>
+      <div id="barLegend" class="legend">
+      </div>
+      <div id="canvas_holder" style="width:80%">
+      </div>
+      <hr>
+      <footer>
+        <p>&copy; Twitter 2014</p>
+      </footer>
+    </div><!--/.fluid-container-->
+
+  </body>
+</html>

@@ -1,0 +1,166 @@
+TODO:
+0/ write a script to transform JSON file into JavaScript object in new data structure
+1/ show latest leaderboard table of mobile UI test contributor
+2/ show latest leaderboard bar chart of mobile UI test contributor
+3/ build contribution tree of certain contributor to show what test suites and test cases he/she modified
+4/ integrate UI Test Contributor Leaderboard with Mobile Contributor Dashboard
+
+=========
+URL & GIT
+=========
+# URL
+http://uileaderboard.devel.yhua.service.smf1.twitter.com/
+
+# GIT
+https://cgit.twitter.biz/uileaderboard/
+$ git clone https://git.twitter.biz/uileaderboard
+
+===================
+HAYAKU INSTALLATION
+===================
+0/ install the hayaku gem
+$ gem install --source 'https://gems.twitter.biz' hayaku
+1/ go to the project directory
+2/ run install gems on your machine
+$ bundle install
+3/ test it locally on http://localhost:5000
+$ foreman start
+4/ deploy
+$ hayaku deploy
+or
+$ hayaku deploy --tunnel-host=nest2.corp.twitter.com
+5/ view the results
+$ hayaku open
+6/ see the admin page
+$ hayaku admin
+
+PS: your ruby version should be 1.9.3. If not, you can configure it in Gemfile.
+
+======================
+Continuous Integration
+======================
+# ANDROID UI TEST REST API
+https://mobile-ci.twitter.biz/view/Android/job/twitter-android-ui-tests/api/json?pretty=true
+# ANDROID UI TEST SUITE
+https://mobile-ci.twitter.biz/view/Android/job/twitter-android-ui-tests/(BUILD#)/artifact/scripts/mobile-test-reporting/artifacts/testsuites.json
+
+# IOS UI TEST REST API
+https://mobile-ci.twitter.biz/job/twitter-ios-master-subliminal/api/json?pretty=true
+# IOS UI TEST SUITE
+https://mobile-ci.twitter.biz/job/twitter-ios-master-subliminal/(BUILD#)/artifact/scripts/mobile-test-reporting/artifacts/testsuites.json
+
+PS: (BUILD#) is latest build number fetched from REST API
+	You should push your changes every time before you deploy.
+
+===========
+RUBY DESIGN
+===========
+# In order to get rid of Cross-Origin XMLHttpRequest problem, I use Ruby to build a small service to get json file from another origin
+# back-end can get testsuites.json from https://mobile-ci.twitter.biz/ and rename it 'ios_tests.json' or 'android_tests.json'
+# front-end can get 'ios_tests.json' or 'android_tests.json' from back-end
+
+# WORK FLOW (take ios for example)
+# first, it gets REST API from https://mobile-ci.twitter.biz/job/twitter-ios-master-subliminal/api/json?pretty=true
+# second, it finds the latest build in REST API, but this build may not have valid artifacts file, so the ruby file will loop until it fetches the latest available one
+# third, it gets TESTSUITES file from https://mobile-ci.twitter.biz/job/twitter-ios-master-subliminal/(BUILD#)/artifact/scripts/mobile-test-reporting/artifacts/testsuites.json (BUILD# is from previous step) and save it as ios_tests.json
+# then front-end can make use of the json file
+
+============
+Architecture
+============
+project directory
+|- Gemfile              # <= list your gem dependencies here (see: http://gembundler.com/v1.3/gemfile.html)
+|- app.rb               # <= your ruby sinatra server (see: http://www.sinatrarb.com)
+|- config.ru            # <= a ruby rack file that can launch your ruby webserver (see: http://rack.rubyforge.org/)
+|- get_json.rb          # <= core code for getting json file from Jenkins
+|- hayaku.yml           # <= list hayaku role
+|- views
+   |- index.erb         # <= main page
+|- public
+   |- boardChart.html   # <= show bar chart of testcase#/testsuite# of android/ios UI test contributor
+   |- boardTable.html   # <= show table of testcase#/testsuite# of android/ios UI test contributor
+   |- boardTree.html    # <= show tree of certain android/ios UI test contributor
+   |- js
+   	  |- operData.js 	  # <= reusable JavaScript functions
+
+==============
+DATA STRUCTURE
+==============
+------------------
+arr Data Structure
+------------------
+arr = [{
+  "contr" : "abc@twitter.com",
+  "levelCase": [{suite:"x", case:["x1", "x2", ...]}, {suite:"y", case:["y1", "y2"]}, ...],
+  "testCaseCount": 7,
+  "testCases": ["x1", "x2", "y1", ...],
+  "testSuiteCount": 2,
+  "testSuites": ["x", "y", ...]
+  },
+  {
+  "contr" : "def@twitter.com",
+  "levelCase": [{suite:"x", case:["x1", "x3", ...]}, {suite:"y", case:["y2", ...]}, ...],
+  "testCaseCount": 5,
+  "testCases": ["x1", "x3", "y2", ...],
+  "testSuiteCount": 3,
+  "testSuites": ["x", "y", ...]
+  },
+  ...
+]
+-------------------
+root Data Structure
+-------------------
+root = {
+  "name": "abc",
+  "children": [{
+    "name": "x",
+    "children": [{
+      "name": "x1"
+    },
+    {
+      "name": "x2"
+    }
+    ...
+    ]
+  },
+  {
+    "name": "y",
+    "children": [{
+      "name": "y1"
+    },
+    {
+      "name": "y3"
+    }
+    ...
+    ]
+  },
+  ...
+  ]
+}
+
+======
+NOTICE
+======
+For more information, please refer to wiki pages
+https://confluence.twitter.biz/display/CES/UI+Test+Contributor+Leaderboard+Runbook
+https://confluence.twitter.biz/display/CES/Mobile+Contributors+Dashboard
+https://confluence.twitter.biz/display/CORPPROD/Hayaku
+
+=========
+REFERENCE
+=========
+# Chart.js
+http://www.chartjs.org/
+
+# D3.js
+http://d3js.org/
+http://mbostock.github.io/d3/talk/20111018/tree.html
+
+# Chart.js.legend
+https://github.com/bebraw/Chart.js.legend
+
+# mobile-test-reporting
+https://cgit.twitter.biz/mobile-test-reporting/
+
+# Mobile Automation Status
+http://mshafrir.devel.mshafrir.service.smf1.twitter.com/

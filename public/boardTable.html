@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>UI Test Contributor Leaderboard</title>
+    <link href="http://maxcdn.bootstrapcdn.com/bootstrap/2.2.0/css/bootstrap.css" rel="stylesheet">
+    <link href="css/basicStyle.css" type="text/css" rel="stylesheet"/>
+    <script src="js/operData.js"></script>
+    <script type="text/javascript">
+    function loadJSONDoc() {
+      var xmlhttp = new XMLHttpRequest();
+      var img = "<img src='/images/loading.gif' ";
+      img += "style='margin-top:10px; margin-left:10px'>";
+      xmlhttp.onreadystatechange = function() {
+        if (xmlhttp.readyState === 4 && xmlhttp.status === 200) {
+          document.getElementById('loadImage').innerHTML = '';
+          var txt = xmlhttp.responseText;
+          var obj = JSON.parse(txt);
+          populate(obj);
+        } else {
+          // If not ready, show loading gif
+          document.getElementById('loadImage').innerHTML = img;
+        }
+      };
+      // If no mobile team selected, show buttons for user to pick one
+      if (!window.location.search) {
+        pickOs('boardTable');
+        return;
+      }
+      // Update html elements
+      var os = window.location.search.substring(4);
+      document.getElementById(os).className = 'active';
+      document.getElementById('boardchart').href = 'boardChart.html?os=' + os;
+      document.getElementById('boardtable').href = 'boardTable.html?os=' + os;
+      document.getElementById('boardtree').href = 'boardTree.html?os=' + os;
+      var url = os + '_tests.json';
+
+      xmlhttp.open('GET', url, true);
+      xmlhttp.send();
+    }
+
+    // Get the data and construct a data structure, create a table to show
+    function populate(testResults) {
+      // Create an array
+      // to save each contributor with his/her testcase and testsuite
+      var arr = populateResults(testResults);
+      arr.sort(compare('testCaseCount'));
+      // Render the table
+      var str = "<table class='table table-hover'>";
+      str += '<tr><th>rank</th><th>contributor</th>';
+      str += '<th>test case#</th><th>test suite#</th><th>more details</th></tr>';
+      arr.forEach(
+        function(value, index) {
+          str += '<tr>';
+          str += '<td>' + index + '</td>';
+          // Provide link to person's profile
+          var userName = 'https://birdhouse.twitter.biz/people/profile/';
+          userName += value.contr;
+          String(userName);
+          str += "<td><a href='" + userName.replace('@twitter.com', '/') + "'>";
+          str += value.contr + '</a></td>';
+          // Show test case count
+          str += '<td>' + value.testCaseCount + '</td>';
+          // Show test suite count
+          str += '<td>' + value.testSuiteCount + '</td>';
+          // Provide link to the details of the contributor's contribution
+          str += "<td><a href='boardTree.html" + window.location.search + '#';
+          str += value.contr + "'>" + '##' + '</a></td></tr>';
+      });
+      str = str + ('</table>');
+      document.getElementById('ajaxRefresh').innerHTML = str;
+    }
+
+    // Show table on load
+    addEventListener('load', function() {
+      loadJSONDoc();
+    });
+    </script>
+  </head>
+
+  <body>
+
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container-fluid">
+          <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="brand">UI Test Contributor Leaderboard</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li><a href="boardChart.html" id="boardchart">Chart</a></li>
+              <li class="active"><a href="boardTable.html" id="boardtable">Table</a></li>
+              <li><a href="boardTree.html" id="boardtree">Tree</a></li>
+            </ul>
+            <ul class="nav pull-right">
+              <li id="ios"><a href="boardTable.html?os=ios">ios</a></li>
+              <li id="android"><a href="boardTable.html?os=android">android</a></li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+
+    <div class="container-fluid" id="content">
+      <h2>Leaderboard Table</h2>
+      <div id="loadImage">
+      </div>
+      <div id="ajaxRefresh" class="bs-example">
+      </div>
+      <hr>
+      <footer>
+        <p>&copy; Twitter 2014</p>
+      </footer>
+    </div><!--/.fluid-container-->
+
+  </body>
+</html>
